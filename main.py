@@ -65,7 +65,7 @@ def get_gemini_response(query, df):
     for index, row in df.iterrows():
         inventory_text += f"CAJA {row['CAJA']} - {row['ARTICULOS']}\n"
 
-    # El prompt que le da instrucciones a la IA
+    # --- MODIFIED PROMPT ---
     prompt = f"""
     Eres un asistente de inventario doméstico llamado Mickey. Tu tarea es encontrar artículos en una lista y decir en qué caja están.
     Tu dueño se llama Gustavo. Responde siempre de forma amigable y directa.
@@ -76,7 +76,12 @@ def get_gemini_response(query, df):
     ---
 
     Basado EXCLUSIVAMENTE en la lista de arriba, responde la siguiente pregunta.
-    Si no encuentras el artículo, dile amablemente que no lo encontraste en el inventario.
+    **Instrucciones importantes para tu búsqueda:**
+    1. Lee la pregunta del usuario para identificar el artículo clave que está buscando.
+    2. Revisa CUIDADOSAMENTE la lista de artículos de CADA caja.
+    3. El artículo podría ser una sola palabra (ej. "bandeja") dentro de una descripción más larga (ej. "bandeja de madera para servir"). Debes encontrar estas coincidencias parciales.
+    4. Si encuentras el artículo en una o más cajas, indica claramente en cuál o cuáles está.
+    5. Si después de revisar todo no lo encuentras, dile amablemente que no lo encontraste.
 
     Pregunta: "{query}"
 
