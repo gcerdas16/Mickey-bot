@@ -1,3 +1,4 @@
+import json
 import os
 import gspread
 import pandas as pd
@@ -29,7 +30,13 @@ def load_inventory():
     """Carga los datos de Google Sheets a un DataFrame de Pandas."""
     try:
         # Autenticar con Google Sheets
-        gc = gspread.service_account(filename="credentials.json")
+        google_creds_json = os.getenv("GOOGLE_CREDS_JSON")
+        if not google_creds_json:
+            gc = gspread.service_account(filename="credentials.json")
+        else:
+            # Para que funcione en Railway
+            creds_dict = json.loads(google_creds_json)
+            gc = gspread.service_account_from_dict(creds_dict)
         # Abrir la hoja de cálculo
         worksheet = gc.open(SHEET_NAME).sheet1
         # Obtener todos los datos y crear el DataFrame
