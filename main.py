@@ -23,7 +23,7 @@ SHEET_NAME = os.getenv("SHEET_NAME")
 
 # Configurar Gemini
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")  # Usamos un modelo rápido y eficiente
+model = genai.GenerativeModel("gemini-2.5-pro")  # Usamos un modelo rápido y eficiente
 
 
 def load_inventory():
