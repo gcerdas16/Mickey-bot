@@ -1,7 +1,6 @@
 import json
 import os
 import gspread
-import pandas as pd
 import google.generativeai as genai
 from dotenv import load_dotenv
 from telegram import Update
@@ -27,7 +26,7 @@ model = genai.GenerativeModel("gemini-2.5-pro")  # Usamos un modelo rápido y ef
 
 
 def load_inventory():
-    """Carga los datos de Google Sheets a un DataFrame de Pandas."""
+    """Carga los datos de Google Sheets como lista de diccionarios."""
     try:
         # Autenticar con Google Sheets
         google_creds_json = os.getenv("GOOGLE_CREDS_JSON")
@@ -39,33 +38,26 @@ def load_inventory():
             gc = gspread.service_account_from_dict(creds_dict)
         # Abrir la hoja de cálculo
         worksheet = gc.open(SHEET_NAME).sheet1
-        # Obtener todos los datos y crear el DataFrame
+        # Obtener todos los datos como lista de diccionarios
         data = worksheet.get_all_records()
-        df = pd.DataFrame(data)
         print("Inventario cargado exitosamente.")
-        return df
+        return data
     except Exception as e:
         print(f"Error al cargar la hoja de Google Sheets: {e}")
         return None
 
 
-# Cargar el inventario UNA VEZ al iniciar el bot
-inventory_df = load_inventory()
-
-# (Añade este código debajo del anterior en main.py)
-
-
-def get_gemini_response(query, df):
+def get_gemini_response(query, inventory_data):
     """Genera una respuesta usando Gemini basado en la consulta y el inventario."""
-    if df is None or df.empty:
+    if inventory_data is None or len(inventory_data) == 0:
         return "Lo siento, no pude cargar el inventario. Por favor, avisa a Gustavo."
 
-    # Convertimos el DataFrame a un formato de texto simple para el prompt
+    # Convertimos la lista de diccionarios a texto simple para el prompt
     inventory_text = ""
-    for index, row in df.iterrows():
-        inventory_text += f"CAJA {row['CAJA']} - {row['ARTICULOS']}\n"
+    for item in inventory_data:
+        inventory_text += f"CAJA {item['CAJA']} - {item['ARTICULOS']}\n"
 
-    # --- MODIFIED PROMPT ---
+    # --- PROMPT OPTIMIZADO ---
     prompt = f"""
     Eres un asistente de inventario doméstico llamado Mickey. Tu tarea es encontrar artículos en una lista y decir en qué caja están.
     Tu dueño se llama Gustavo. Responde siempre de forma amigable y directa.
@@ -94,8 +86,6 @@ def get_gemini_response(query, df):
         print(f"Error al llamar a la API de Gemini: {e}")
         return "Tuve un problema para pensar la respuesta. Inténtalo de nuevo."
 
-    # (Añade este código al final de main.py)
-
 
 # --- 2. COMANDOS DEL BOT ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -107,14 +97,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def reload(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Recarga el inventario desde Google Sheets."""
-    global inventory_df
-    await update.message.reply_text("Recargando el inventario desde Google Sheets...")
-    inventory_df = load_inventory()
-    if inventory_df is not None:
-        await update.message.reply_text("¡Listo! Inventario actualizado.")
-    else:
-        await update.message.reply_text("Hubo un error al recargar. Revisa la consola.")
+    """Comando de compatibilidad (ya no es necesario recargar porque se carga bajo demanda)."""
+    await update.message.reply_text("¡El inventario siempre está actualizado! 🎯")
 
 
 # --- 3. MANEJO DE MENSAJES ---
@@ -127,8 +111,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         chat_id=update.effective_chat.id, action="typing"
     )
 
+    # Cargar inventario SOLO cuando se necesita (bajo demanda)
+    inventory_data = load_inventory()
+    
     # Obtener la respuesta de Gemini
-    response = get_gemini_response(user_query, inventory_df)
+    response = get_gemini_response(user_query, inventory_data)
 
     # Enviar la respuesta
     await update.message.reply_text(response)
@@ -142,9 +129,7 @@ def main() -> None:
 
     # Añadir los manejadores de comandos y mensajes
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(
-        CommandHandler("reload", reload)
-    )  # ¡Comando útil para actualizar!
+    application.add_handler(CommandHandler("reload", reload))
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
     )
